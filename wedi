@@ -1,0 +1,258 @@
+#!/bin/sh
+#Author: Martin Krajňák, xkrajn02@stud.fit.vutbr.cz
+#Project: text editor wrapper, Project for IOS course at fit.vutbr.cz
+
+#export WEDI_RC=/homes/eva/xk/xkrajn02/wedi_cfg
+#export EDITOR=nano
+#pojmy z os sktruktura os a operacne systemy, procesy nie, piatok demo 
+
+if [ -z "$WEDI_RC" ] 
+then				 
+	echo "ERR:Variable for cfg is not set" >&2
+	exit 1
+fi
+if [ -z "$EDITOR" ] 
+then
+	EDIT="$VISUAL"
+	if [ -z "$VISUAL" ]
+	then
+		echo "ERR:Editor Variable is not set" >&2
+		exit 1;
+	fi
+else 
+	EDIT="$EDITOR"
+fi
+
+date=`date +'%Y%m%d'`
+case "$1" in
+	-p) echo "pojmy z os sktruktura os a operacne systemy, procesy nie, piatok demo" ;;
+	-m)	
+		#input is folder, most edited
+ 		if [  "$#" -gt 2 ]
+		then
+			echo "too many args" >&2
+			exit 1
+		fi
+ 		if [ -z "$2" ] 
+ 			then
+ 			route="$(readlink -f $PWD)"
+ 		else 
+ 			route="$(readlink -f "$2")"
+ 		fi
+ 		if [ -f "$2" ]  #file in arg instead folder
+			then
+			echo "ERR:file selected" >&2
+			exit 1;
+		fi
+		files=`ls -a "$route" 2>/dev/null | sed "s/\ /#/g"` 
+ 		exist=""
+ 		for file in $files 
+ 		do  
+ 			file="`echo "$file" | sed "s/#/\ /g"`"
+ 			if [ -f "$route/$file" ]  	
+ 				then
+ 				exist="$exist`cat "$WEDI_RC" | cut -f1 -d'|' | grep "$route"/[^/]\*$ | sed "s#/.*/##g" | grep "$file" | sed "s/\ /#/g"` "  
+ 			fi 	
+ 		done
+ 		exist="`echo "$exist" | awk 'NF > 0'`"
+ 		if [ -z "$exist" ]
+			then
+			echo "ERR:No record in selected folder" >&2
+			exit 1;
+		fi
+		exist=`echo $exist | tr ' ' '\n' | sort | uniq -c | sort -rnk1 | head -n 1 | xargs | cut -d" " -f2 | sed "s/#/\ /g"`
+ 		echo "$route/$exist|$date" >> "$WEDI_RC"
+ 		"$EDIT" "$exist"
+		exit $?;;
+
+	-l)		#show files edited by script
+ 		if [  "$#" -gt 2 ]
+		then
+			echo "too many args" >&2
+			exit 1
+		elif [ -f "$2" ]  && [ -n "$2" ] #file in arg instead folder
+			then
+			echo "ERR:file selected" >&2
+			exit 1
+		fi
+		if [ -z "$2" ] 
+ 			then
+ 			route="$(readlink -f $PWD)"
+ 		else 
+ 			route="$(readlink -f "$2")"
+ 		fi
+		if  [ -d "$route" ]  #is dir	
+			then
+				files=$(cat "$WEDI_RC" | cut -f1 -d'|' | grep "$route"/[^/]\*$ | sed "s#/.*/##g" | grep "$file" | sort | uniq | sed "s/\ /#/g" )  
+				for file in $files
+				do
+					file="`echo "$file" | sed "s/#/\ /g"`"
+					if [ -f "$route/$file" ]
+					then
+						echo "$file"
+					fi
+				done 
+		fi
+		exit 0;;
+	-b)	
+ 		if [  "$#" -gt 3 ]
+		then
+			echo "too many args" >&2
+			exit 1
+		fi
+		if [ -z "$2" ]
+ 			then
+ 			echo "ERR:No date inserted" >&2
+ 			exit 1;
+ 		fi
+ 		if  ! echo $2 | egrep -q '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+ 			then
+ 			echo "ERR:date not valid" >&2
+ 			exit 1;
+ 		fi
+ 		if [ -z "$3" ] 
+ 			then
+ 			route="$(readlink -f $PWD)"
+ 		else 
+ 			route="$(readlink -f "$3")"
+ 		fi
+ 		if [ ! -d "$route" ]
+ 			then
+ 			echo "ERR: not directory" >&2
+ 			exit 1
+ 		fi
+		newdate=$(echo "$2" | sed s#-##g)
+		files=`ls -a "$route" 2>/dev/null | sed "s/\ /#/g"` 
+ 		exist=""	
+ 		for file in $files 
+ 			do  
+ 				file="`echo "$file" | sed "s/#/\ /g"`"
+ 				if [ -f "$route/$file" ]  	
+ 					then
+ 					exist="$exist`cat $WEDI_RC | grep "$route"/[^/]\*$ | sed "s#/.*/##g" | grep "$file" | sed "s/\ /#/g"` "  
+ 				fi 	
+ 			done 
+ 		exist=`echo $exist | tr ' ' '\n' | sort | uniq | sed "s/#/\ /g"`
+		dates=$(echo "$exist" | grep "$exist" | cut -f2 -d'|' | sort | uniq )
+		for date in $dates
+		do 	
+		 	if [ "$date" -le "$newdate" ] 
+		 		then
+		 		echo "$(echo "$exist" | grep "$date" | cut -f1 -d'|' | rev | cut -f1 -d'/' | rev | sort | uniq )"
+		 	fi
+		done | sort  | uniq
+		 ;;
+	-a)	
+		#echo "after $2"
+		if [  "$#" -gt 3 ]
+		then
+			echo "too many args" >&2
+			exit 1;
+		fi
+		if [ -z "$2" ]
+ 			then
+ 			echo "ERR:No date inserted" >&2
+ 			exit 1;
+ 		fi
+ 		if  ! echo $2 | egrep -q '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' 
+ 			then
+ 			echo "ERR:date not valid" >&2
+ 			exit 1;
+ 		fi
+ 		if [ -z "$3" ] 
+ 			then
+ 			route="$(readlink -f $PWD)"
+ 		else 
+ 			route="$(readlink -f "$3")"
+ 		fi
+ 		if [ ! -d "$route" ]
+ 			then
+ 			echo "ERR: not directory" >&2
+ 			exit 1
+ 		fi
+		newdate=$(echo "$2" | sed s#-##g)
+		files=`ls -a "$route" 2>/dev/null | sed "s/\ /#/g"`
+ 		exist=""	
+ 		for file in $files 
+ 			do  
+ 				file="`echo "$file" | sed "s/#/\ /g"`"
+ 				if [ -f "$route/$file" ]  	
+ 					then
+ 					exist="$exist`cat $WEDI_RC | grep "$route"/[^/]\*$ | sed "s#/.*/##g" | grep "$file" | sed "s/\ /#/g"` "  
+ 				fi 	
+ 			done 
+ 		exist=`echo $exist | tr ' ' '\n' | sort | uniq | sed "s/#/\ /g"`
+		dates=$(echo "$exist" | grep "$exist" | cut -f2 -d'|' | sort | uniq )
+		for date in $dates
+		do 	
+		 	if [ "$date" -ge "$newdate" ] 
+		 		then
+		 		echo "$(echo "$exist" | grep "$date" | cut -f1 -d'|' | rev | cut -f1 -d'/' | rev | sort | uniq )"
+		 	fi
+		done | sort  | uniq
+		;;
+	*)	
+ 		if [  "$#" -gt 3 ]
+		then
+			echo "too many args" >&2
+			exit 1
+		fi
+ 		if [ -z "$1" ] #handling folder 
+			then
+			files=`cat $WEDI_RC | grep "$(readlink -f $PWD)"/[^/]\*$ | cut -f1 -d'|' | grep "$route" | sed "s#/.*/##g" | uniq | sed '1!G;h;$!d' | awk 'NF > 0' | sed "s/\ /#/g" `	
+			if [ -z "$files" ]
+				then 
+				echo "ERR:No file was edited here" >&2
+				exit 1;
+			fi
+			for file in $files
+				do
+					file="`echo "$file" | sed "s/#/\ /g"`"
+					if [ -f "$file" ]; then
+						echo "$(readlink -f $PWD)/$file|$date" >> "$WEDI_RC"
+						"$EDIT" "$(readlink -f $PWD)/$file"		
+						break
+					fi
+				done
+		elif [ -d "$1" ]
+			then
+			route="$(readlink -f "$1")"  
+			files=`cat $WEDI_RC | grep "$route"/[^/]\*$ | cut -f1 -d'|' | grep "$route" | sed "s#/.*/##g" | uniq | sed '1!G;h;$!d' | awk 'NF > 0' | sed "s/\ /#/g" `	
+			if [ -z "$files" ]
+				then 
+				echo "ERR:No file was edited here" >&2
+				exit 1;
+			fi
+			for file in $files
+				do
+				file="`echo "$file" | sed "s/#/\ /g"`"
+				if [ -f "$route/$file" ]; then
+					echo "$route/$file|$date" >> "$WEDI_RC"
+					"$EDIT" "$route/$file"		
+					break
+				fi
+			done			
+		elif [ -f "$1" ] 	#handling existing files
+			then
+			echo "$(readlink -f "$1")|$date" >> "$WEDI_RC"
+			"$EDIT" "`readlink -f "$1"`"
+		else	# handling new file
+			if [ -z "`echo "$1" | grep "/"`" ] #|| [ -z "`echo "$1" | grep "~"`" ] 
+				then
+				echo "$(readlink -f $PWD)/$1|$date" >> "$WEDI_RC"
+				"$EDIT" "$1"
+			else
+				if [ -z "$(readlink -f $1)" ]
+					then
+					route="$1"
+				else
+					route="$(readlink -f $1)"
+				fi
+				echo "$route|$date" >> "$WEDI_RC"
+				"$EDIT" "$1"
+			fi
+		fi
+		exit $?;;	
+esac
+exit 0;
+
